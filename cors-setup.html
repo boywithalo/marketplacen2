@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Firebase Storage CORS Setup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 5px;
+      overflow-x: auto;
+    }
+    .step {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>Firebase Storage CORS Configuration</h1>
+  
+  <div class="step">
+    <h2>Step 1: Install Google Cloud SDK</h2>
+    <p>Download and install the Google Cloud SDK from: <a href="https://cloud.google.com/sdk/docs/install" target="_blank">https://cloud.google.com/sdk/docs/install</a></p>
+    <p>For macOS, you can use Homebrew:</p>
+    <pre>brew install --cask google-cloud-sdk</pre>
+  </div>
+  
+  <div class="step">
+    <h2>Step 2: Login to Google Cloud</h2>
+    <pre>gcloud auth login</pre>
+  </div>
+  
+  <div class="step">
+    <h2>Step 3: Set CORS Configuration</h2>
+    <p>Run the following command:</p>
+    <pre>gsutil cors set cors.json gs://alore-account.firebasestorage.app</pre>
+    <p>If you get a permission error, you may need to authenticate with the account that has admin access to your Firebase project:</p>
+    <pre>gcloud config set project alore-account</pre>
+  </div>
+  
+  <div class="step">
+    <h2>Alternative: Set CORS via Firebase Console</h2>
+    <ol>
+      <li>Go to <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a></li>
+      <li>Select your project "alore-account"</li>
+      <li>Go to Storage in the left sidebar</li>
+      <li>Click on the "Rules" tab</li>
+      <li>Add the following to your rules:</li>
+    </ol>
+    <pre>
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+      
+      // Add CORS headers to responses
+      function corsHeaders() {
+        return {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type"
+        };
+      }
+    }
+  }
+}
+</pre>
+  </div>
+  
+  <div class="step">
+    <h2>Temporary Workaround: Use Firebase Storage REST API</h2>
+    <p>If you're still having CORS issues, you can modify your code to use the Firebase Storage REST API directly with proper CORS headers.</p>
+  </div>
+</body>
+</html>
