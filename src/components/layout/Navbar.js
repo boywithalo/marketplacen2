@@ -20,7 +20,7 @@ const Navbar = ({ user }) => {
   return (
     <nav className="bg-gray-800 text-white p-4">
       <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="text-xl font-bold">E-Commerce</Link>
+        <Link to="/" className="text-xl font-bold">d'Arc Marketplace</Link>
         <div className="flex items-center space-x-4">
           <Link to="/cart" className="hover:text-gray-300 relative">
             Cart
