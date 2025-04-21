@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useCart } from '../contexts/CartContext';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
+// Add EmailJS import
+import emailjs from '@emailjs/browser';
 
 // Add this import at the top
 import { updateProductStock, getProductById } from '../services/productService';
@@ -51,7 +53,7 @@ const CheckoutPage = () => {
         })),
         paymentMethod,
         subtotal: cartTotal,
-        tax: cartTotal * 0.08, // 8% tax rate
+        tax: cartTotal * 0.02, // 8% tax rate
         total: cartTotal * 1.08,
         status: 'processing',
         createdAt: serverTimestamp(),
@@ -75,21 +77,73 @@ const CheckoutPage = () => {
               const newStock = Math.max(0, currentStock - item.quantity);
               
               // Update the stock directly
-              return updateDoc(productRef, {
-                stock: newStock,
-                updatedAt: new Date()
-              });
+              // Check if user is authenticated before attempting update
+              if (auth.currentUser) {
+                try {
+                  await updateDoc(productRef, {
+                    stock: newStock,
+                    updatedAt: new Date()
+                  });
+                  console.log(`Stock updated for product ${item.id}: ${currentStock} -> ${newStock}`);
+                } catch (updateErr) {
+                  console.error(`Permission error updating stock for ${item.id}:`, updateErr);
+                  // Continue with order process even if stock update fails
+                }
+              } else {
+                console.log(`Stock update skipped for ${item.id} - user not authenticated`);
+              }
             }
           } catch (err) {
             console.error(`Error updating stock for product ${item.id}:`, err);
           }
         });
         
-        await Promise.all(stockUpdatePromises);
-        console.log('All product stocks updated successfully');
+        // Only attempt to update stocks if user is authenticated
+        if (auth.currentUser) {
+          await Promise.all(stockUpdatePromises);
+          console.log('All product stocks updated successfully');
+        } else {
+          console.log('Stock updates skipped - user not authenticated');
+        }
       } catch (stockError) {
         console.error('Error updating product stocks:', stockError);
         // Continue with order process even if stock update fails
+      }
+      
+      // Send order confirmation email
+      try {
+        // Format the order items for the email template
+        const orderItems = cartItems.map(item => ({
+          name: item.name,
+          units: item.quantity,
+          price: (item.price * item.quantity).toFixed(2)
+        }));
+        
+        // Prepare email template parameters
+        const emailParams = {
+          to_email: data.email,
+          to_name: `${data.firstName} ${data.lastName}`,
+          order_id: docRef.id,
+          orders: orderItems,
+          cost: {
+            shipping: '0.00', // Update with your shipping calculation
+            tax: (cartTotal * 0.02).toFixed(2),
+            total: (cartTotal * 1.08).toFixed(2)
+          }
+        };
+        
+        // Send the email using EmailJS
+        await emailjs.send(
+          'dArcStore', // Replace with your EmailJS service ID
+          'template_hi2ek09', // Replace with your EmailJS template ID
+          emailParams,
+          'wH11KboxedqwIG_2S' // Replace with your EmailJS public key
+        );
+        
+        console.log('Order confirmation email sent successfully');
+      } catch (emailError) {
+        console.error('Error sending order confirmation email:', emailError);
+        // Continue with order process even if email fails
       }
       
       // Clear cart and show success message
@@ -115,7 +169,7 @@ const CheckoutPage = () => {
         <p className="mb-6">Thank you for your purchase. We'll send you an email confirmation shortly.</p>
         <button
           onClick={() => navigate('/')}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full"
+          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-2xl"
         >
           Continue Shopping
         </button>
